@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Spline Based Models for Geostatistical Data</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Craig Alexander &amp; Marnie Low" />
+    <script src="libs/header-attrs-2.13/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/tamu-fonts.css" rel="stylesheet" />
+    <link rel="stylesheet" href="xaringan-themer.css" type="text/css" />
+    <link rel="stylesheet" href="extra.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+.title[
+# Spline Based Models for Geostatistical Data
+]
+.subtitle[
+## Part 1 - Introduction &amp; Splines
+]
+.author[
+### Craig Alexander &amp; Marnie Low
+]
+
+---
+
+
+
+
+
+# Overview
+
+- Introduction &amp; Motivation
+
+&lt;br&gt;
+--
+
+- Nonparametric Regression
+
+&lt;br&gt;
+--
+
+- Regression Splines
+
+&lt;br&gt;
+--
+
+- Penalised Regression Splines
+
+
+&lt;br&gt;
+--
+
+- Choosing a Smoothing Parameter
+
+&lt;br&gt;
+--
+
+- Introduction to Additive Models
+
+
+---
+# Introduction &amp; Motivation
+
+
+- Geostatistics is a branch of statistical methods used to analyse and predict values over a spatial area. It incorporates the spatial (and sometimes temporal) coordinates of data within the analyses.
+
+&lt;br&gt;
+--
+
+There are several modelling approaches that can be used to model geostatistical data, such as popular methods like kriging.
+
+&lt;br&gt;
+--
+
+- In this course, we will introduce spline-based models for geostatistical data. We will first look at these models for univariate data, before moving on to handling spatial data.
+
+&lt;br&gt;
+--
+
+
+- We will look at a class of flexible models that enable us to model and make inferences about relationships which take any shape.
+
+---
+# Nonparametric Regression
+
+- Smoothing techniques can be used to model the relationships between variables without specifying any particular form for the underlying regression function:
+
+`$$Y_i=f(x_i)+\epsilon_i, \quad i=1, \dots,n$$`
+where `\(Y\)` denotes our response variable, `\(x\)` a covariate and `\(e\)` denotes an independent error term with mean 0 and variance `\(\sigma^2\)`. We call this estimate a smooth.
+
+&lt;br&gt;
+--
+
+Smoothers have two main uses:
+
+- *Estimation* - to aid 'visually' in the exploration of a relationship or pattern
+- *Estimation* - to estimate the dependence of the mean of `\(Y\)` on the predictor `\(x\)`.
+
+---
+# Nonparametric Regression
+
+- The function `\(f(x)\)` which describes the relationship between `\(Y\)` and `\(x\)` is unspecified and can be estimated by a smooth function `\(\hat{f}(x)\)`. This process is often called *nonparametric regression*.
+
+&lt;br&gt;
+--
+
+The two key questions that arise regarding defining a smoother are:
+
+1. Which smoothing method should be used?
+2. What level of smoothing is appropriate?
+
+---
+# Splines
+
+- Represent the fit of `\(f(x)\)` is as a piecewise polynomial.
+
+&lt;br&gt;
+--
+
+- Spline functions consist of polynomial segments which are joined together at pre-defined subintervals.
+
+&lt;br&gt;
+--
+
+- The points at which these joins occur are called breakponts, or *knots* of the spline. 
+- 
+
+---
+# Knots of a spline
+&lt;img src="Geostatistical-Slides---Part-1_files/figure-html/unnamed-chunk-2-1.png" width="504" style="display: block; margin: auto;" /&gt;
+
+---
+# Regression Splines
+
+- Regression splines are underpinned by a set of known functions called *basis functions*, which are a common way to build a smooth function. 
+
+&lt;br&gt;
+--
+
+- We can rewrite the regression equation as:
+
+`$$Y_i = \beta_0b_0(x_i) + \beta_1 b_1(x_i) + \beta_2 b_2(x_i) + \ldots + \beta_p
+b_p(x_i) + \varepsilon_i ,$$`
+
+where the `\(b_i\)`s correspond to the basis functions and the `\(\beta_{i}\)`s are basis coefficients. 
+
+
+--
+
+- We construct spline bases by dividing the observation interval into sub-intervals. We then join these sub-intervals together at points, which are represented by knots, which we seen previously. 
+
+
+--
+
+- Therefore, we can simplify our functions above as follows:
+
+`$$f(\mathbf{x}) = \sum_{j=0}^p\beta_jb_j(x)$$`
+
+---
+# Basis Functions
+
+- To fit our regression spline model, we have to choose a suitable basis.  There is a wide choice of basis we can use, and this is often dependent on our data. 
+
+&lt;br&gt;
+--
+
+- For a simple linear regression, 
+
+`$$Y_i = \beta_0 + \beta_1 x_i+\varepsilon_i ,$$`
+
+`$$\mathrm{design \, \, matrix} = \mathbf{X} = \mathbf{B(x)} = \mathbf{B}=\left(
+\begin{array}{cc}
+1 &amp; x_1 \\
+1 &amp; x_2 \\
+. &amp; . \\
+. &amp; . \\
+. &amp; . \\
+1 &amp; x_n \\
+\end{array}
+\right)$$`
+
+basis functions are `\(b_0(x) = 1, b_1(x) = x\)`
+
+---
+# Basis Functions
+
+&lt;img src="Geostatistical-Slides---Part-1_files/figure-html/unnamed-chunk-3-1.png" width="80%" style="display: block; margin: auto;" /&gt;
+
+---
+# Truncated power basis
+
+- This is a simple type of polynomial spline of the following form:
+
+`$$\beta_0+\beta_1x+\dots+\beta_px^p+\sum_{k=1}^K\beta_{pk}(x-\kappa_k)^p_+$$`
+
+--
+
+- This basis is useful for its simplicity and ease of interpretation. The `\((.)^p_{+} = \mathrm{max}\left\{(.)^p,0\right\}\)`  component sets any values which are negative to be 0 within the function.
+
+
+&lt;br&gt;
+-- 
+
+- A simple case would be for a linear spline basis with one knot at `\(x=0.5\)` e.g.
+
+`$$Y_i=\beta_0+\beta_1x_i+\beta_{11}(x_i-0.5)_++\epsilon_i, \quad i=1, \dots,n$$`
+
+where `\((x_i-0.5)_+\)` is the positive part of the function `\(x-0.5\)`.  The `\(+\)` sets this function to zero for those values of `\(x\)` where `\(x-0.5\)` is negative.
+
+---
+# Truncated power basis
+
+&lt;img src="Geostatistical-Slides---Part-1_files/figure-html/unnamed-chunk-4-1.png" width="504" /&gt;
+
+---
+# B-splines
+
+- Polynomial B-spline basis functions are among the most commonly used basis systems. They are flexible and computationally efficient for model fitting. 
+
+&lt;br&gt;
+--
+
+- The function `\(f(\mathbf{x})\)` can then be written in terms of basis coefficients `\(\beta_j\)` and basis functions `\(B_{j,d}(x)\)` for `\(j\)` parameters and degree `\(d\)`:
+
+`$$f(\mathbf{x}) = {\sum}^{p}_{j=1} \beta_jB_{j,d}(x).$$`
+&lt;br&gt;
+--
+
+- The `splines` package in R can be used to create basis functions. In particular, `bs()` uses a B-spline basis for a polynomial of any order (default value is cubic).
+
+---
+# B-splines
+
+&lt;div class="figure" style="text-align: center"&gt;
+&lt;img src="Geostatistical-Slides---Part-1_files/figure-html/bsbasis-1.png" alt="B-spline basis with 6 cubic b-splines" width="504" /&gt;
+&lt;p class="caption"&gt;B-spline basis with 6 cubic b-splines&lt;/p&gt;
+&lt;/div&gt;
+
+
+---
+# B-splines
+&lt;div class="figure" style="text-align: center"&gt;
+&lt;img src="Geostatistical-Slides---Part-1_files/figure-html/bsfit-1.png" alt="B-spline basis applied to the simulated data from above" width="504" /&gt;
+&lt;p class="caption"&gt;B-spline basis applied to the simulated data from above&lt;/p&gt;
+&lt;/div&gt;
+
+---
+# B-splines
+
+- Have a look at the app [here](https://marnie-svst.shinyapps.io/Splines/) to try out altering the number of basis functions and see the effect of increasing and decreasing the number.
+
+&lt;br&gt;
+--
+
+- You can access the app link in the notes at the top of page 7.
+
+---
+# Regression Splines - Summary
+
+-   Regression splines are an attractive modelling option due to their computational advantages. 
+
+&lt;br&gt;
+--
+
+- Drawbacks are the difficulty in choosing the number of and position of knots. 
+
+&lt;br&gt;
+--
+
+- It is common for knots to be equally spaced, though in cases of imbalanced data, it may be sensible to place more knots in areas of large curvature, or less in sparse areas. 
+
+---
+# Penalised Regression Splines
+
+- An alternative to altering the basis dimension is to control the smoothness of the function by adding a penalty term. 
+
+--
+
+- A *roughness penalty* is used in order to ensure that an estimate is obtained which captures the curvature of the data without simply interpolating the observations. 
+
+--
+
+A common choice is to put a penalty on the second derivative of the fitted curve, in a similar way to smoothing splines:
+
+`$$||\mathbf{y}-\mathbf{X}\boldsymbol\beta||^2+\underbrace{\lambda \int_{x_1}^{x_n}\left[f''(x)\right]^2dx}$$`
+
+where the second part of this equation penalises models that are too rough or 'wiggly'.
+
+--
+
+- The trade-off between model fit and smoothness is then controlled by the smoothing parameter `\(\lambda\)`
+
+---
+# Penalised regression splines
+
+- Looking back to the app we used to visualise B-splines, return now and select the "add a roughness penalty" option to see the penalty term in action. 
+
+---
+# P-splines
+
+- P-splines use a B-spline basis, usually defined on evenly spaced knots, with a difference penalty applied directly to the parameters `\(\beta_j\)` to control the smoothness of the function.
+
+&lt;br&gt;
+--
+
+- P-splines allow a great deal of flexibility in that any order of penalty can be combined with any order of B-spline basis.
+
+&lt;br&gt;
+--
+
+- You can read more on the construction of the differences within the course notes. 
+
+---
+# Properites, parameters and inference
+
+- For the smoothing methods discussed, we can construct the fitted values `\(\hat{\textbf{y}}\)` as
+
+`$$\hat{\textbf{y}} = \textbf{Sy}$$`
+for a smoothing matrix `\(\textbf{S}\)` whose rows consist of the weights appropriate to estimation at each evaluation point, and `\(\textbf{y}\)` denotes the observed responses.
+
+&lt;br&gt;
+--
+
+- We will now consider properties associated with the smoothing matrix, 'how much' to smooth, and inference for nonparametric regression models
+
+--
+
+- More technical details and derivations of results can be found within the notes. 
+
+
+---
+# RSS &amp; Standard Errors
+
+- The RSS is a measure of how well the model fits the data, and is defined as:
+
+$$\text{RSS} = \mathbf{y}^T(\mathbf{I}_n-\mathbf{S})^T(\mathbf{I}_n-\mathbf{S})\mathbf{y} $$
+
+
+--
+
+- Assuming constant variance, for a general point `\(x_i\)`, we have:
+
+`$$\mathrm{var}(\hat{f}(x_i)) = (\mathbf{SS^T}_{ii})\sigma^2$$`
+
+--
+
+- We can produce *variability bands* which express the variation in the curve estimate, by adding and subtracting two standard errors at each point on the curve:
+
+
+i.e. `$$\hat{f}(x_i) \pm 2 \times \mathrm{std. dev}(\hat{f}(x_i))$$`
+	
+i.e. `$$\hat{f}(x_i) \pm 2 \times \sqrt{(\mathbf{SS^T}_{ii})\hat{\sigma}^2}$$`
+
+---
+# Variability bands
+
+&lt;div class="figure" style="text-align: center"&gt;
+&lt;img src="Geostatistical-Slides---Part-1_files/figure-html/seplot-1.png" alt="Simulated data with fitted smooth curve (solid line) and standard errors (dashed lines)" width="504" /&gt;
+&lt;p class="caption"&gt;Simulated data with fitted smooth curve (solid line) and standard errors (dashed lines)&lt;/p&gt;
+&lt;/div&gt;&lt;div class="figure" style="text-align: center"&gt;
+&lt;img src="Geostatistical-Slides---Part-1_files/figure-html/seplot-2.png" alt="Simulated data with fitted smooth curve (solid line) and standard errors (dashed lines)" width="504" /&gt;
+&lt;p class="caption"&gt;Simulated data with fitted smooth curve (solid line) and standard errors (dashed lines)&lt;/p&gt;
+&lt;/div&gt;
+
+---
+# Variance estimators
+
+- After model fitting, it is necessary to provide an estimate of the error variance `\(\sigma^2\)`, assuming `\(\boldsymbol\epsilon \sim N(0, \sigma^2\mathbf{I})\)`. 
+
+--
+
+- The quantity 
+$$ \hat{\sigma}^2 = \frac{\mathrm{RSS}}{\mathrm{df_{err}}}$$
+
+is a natural estimate of `\(\sigma^2\)`.
+
+--
+
+We can use
+$$\mathrm{df}_{\mathrm{err}} = n - \mathrm{tr}(2\mathbf{S}-\mathbf{SS}^\mathrm{T}) $$
+as an estimate for the degrees of freedom. 
+
+---
+# Choice of smoothing parameter
+
+- Often the most important choice to be made is the smoothing parameter. It is important not to 'under-smooth' or 'over-smooth' the data using low or high smoothing parameters respectively. 
+
+--
+
+- Different methods are available to decide what the optimal degree of smoothing should be. These comprise of either subjective selection or automatic procedures. 
+
+--
+
+- Some automatic procedures that can be used are cross validation, generalised cross validation and AIC. 
+
+--
+
+- Graphical methods can also be used to select smoothing parameters, and it reasonable to select the smoothing parameter by the degrees of freedom. 
+
+---
+# Degrees of Freedom
+
+- One useful way to experiment with different degrees of smoothing is to specify how many *degrees of freedom* you would like to have for the model. 
+
+--
+
+- The amount of variability ('wiggliness') in the curve increases as the degrees of freedom increase. 
+
+
+
+&lt;div class="figure" style="text-align: center"&gt;
+&lt;img src="Geostatistical-Slides---Part-1_files/figure-html/df-1.png" alt="Radiocarbon data with model with four different degrees of freedom" width="40%" /&gt;
+&lt;p class="caption"&gt;Radiocarbon data with model with four different degrees of freedom&lt;/p&gt;
+&lt;/div&gt;
+
+---
+# Cross Validation
+
+- Cross-validation can be applied to a wide variety of modelling settings. 
+
+--
+
+- Leave out each observation one at a time, and estimate the average smoothed value of the point which has been omitted using the remaining `\(n-1\)` points. 
+
+--
+
+- Therefore, in this context, the idea is to choose the smoothing parameter `\(\lambda\)` to minimise
+
+`$$\frac{1}{n}\sum_{i=1}^n \{y_i - \hat{f}_{-i}(x_i)\}^2 .$$`
+
+--
+
+- CV sums of squares can then be calculated for a suitable range of different smoothing parameter values. 
+
+--
+
+- CV is computationally expensive as the model needs to be fitted `\(n\)` times for each smoothing parameter value considered. 
+
+---
+# Cross Validation
+
+&lt;div class="figure" style="text-align: center"&gt;
+&lt;img src="Geostatistical-Slides---Part-1_files/figure-html/cvfit-1.png" alt="Simulated data with a penalised regression spline fit optimised using CV (solid line) and true curve (dotted line)." width="504" /&gt;
+&lt;p class="caption"&gt;Simulated data with a penalised regression spline fit optimised using CV (solid line) and true curve (dotted line).&lt;/p&gt;
+&lt;/div&gt;
+
+---
+# Generalised Cross Validation (GCV)
+
+- GCV overcomes the problem of having to fit the model `\(n\)` times, for each `\(\lambda\)`.
+
+--
+
+- For GCV the model only needs to be fitted once with the full data for each value of the smoothing parameter. 
+
+--
+
+- The GCV value can be defined as:
+
+
+`$$\mathrm{GCV} = \frac{n\mathrm{RSS}}{(n-\mathrm{tr}(\mathbf{S}))^2}.$$`
+where `\(\mathrm{tr}\)` is the trace. 
+
+---
+# GCV
+
+&lt;div class="figure" style="text-align: center"&gt;
+&lt;img src="Geostatistical-Slides---Part-1_files/figure-html/gcvfit-1.png" alt="Simulated data with penalised regression spline fit optimised using GCV (solid line) and true curve (dotted line)" width="504" /&gt;
+&lt;p class="caption"&gt;Simulated data with penalised regression spline fit optimised using GCV (solid line) and true curve (dotted line)&lt;/p&gt;
+&lt;/div&gt;
+
+---
+# AIC &amp; AICc
+
+- Two commonly used model selection criteria are Akaike's Information Criterion (AIC) and a corrected version of the statistic, called AICc. 
+
+--
+
+-  The AIC can be defined as
+
+ `$$\mathrm{AIC} = - 2\log(L)+2\mathrm{df_{mod}}$$`
+
+--
+
+- AICc can be defined as,
+
+$$ \mathrm{AICc} = \mathrm{AIC} + \frac{2\mathrm{df_{mod}} (\mathrm{df_{mod}} + 1)}{n - \mathrm{df_{mod}} - 1}$$
+
+
+where `\(n\)`= sample size, `\(\mathrm{df_{mod}}\)` = degrees of freedom for the fitted model, and `\(L\)`= the maximised value of the likelihood function for the estimated model. 
+
+--
+
+- For both criteria, the minimum value indicates the best model, which would indicate the smoothing parameter which should be used. 
+
+---
+# Summary of choosing smoothing parameter
+
+- Automatic procedures for the selection of smoothing parameters assume the data, and hence any errors from fitted models, are *independent*.
+
+--
+
+- The presence of *correlation* between the errors can cause automatic smoothing selection methods like GCV to break down. 
+
+--
+
+- Taking a subjective approach and using judgement as to what values of the smoothing parameter provide a smooth function is a reasonable alternative (e.g. explore graphical representations for different smoothing parameter values).
+
+--
+
+- An approximate number of degrees of freedom can be chosen to define how complex the model is, and the smoothing parameters are then set in order to obtain this pre-specified number.
+
+---
+# Choosing the number of knots
+
+- If there are too few knots then a good fit will not be achievable.
+
+--
+
+- A reasonable default is to choose the number of knots to ensure there is a *fixed number of 'unique' observations* (say 4-5) between each knot. 
+
+--
+- This can lead to an excessive number of knots for large datasets so a maximum bound can be put on the number of knots used in total. 
+
+--
+
+- Automatic methods like GCV can be used to select the number of knots.
+
+---
+# Model fitting in R
+
+- Nonparametric models using a penalised regression spline can be fitted in R using the `gam` function in the `mgcv` package.
+
+--
+
+- This function uses GCV as the method for selecting the smoothing parameter, though other methods can be implemented using the `method=` option within `gam`.
+
+--
+
+- You can find a table of available spline functions within the notes. 
+
+---
+# R Commands
+
+- **Penalised Regression Splines in R** 
+
+`library(mgcv)`
+
+`gam(y~s(x, bs="cr"), method="GCV.Cp")`
+
+--
+
+- **P-splines in R** 
+
+`library(mgcv)`
+
+`gam(y~s(x, bs="ps"), method="GCV.Cp")`
+
+--
+
+- **Regression Splines in R (i.e. a penalised regression spline with the smoothing parameter (sp) set to 0** 
+
+`library(mgcv)`
+
+`gam(y~s(x, bs="cr", sp=0))`
+
+Within `s()` we can specify the type of basis we want to use with `bs=` and the number of basis functions we want to use with `k=`, here the default value is 10.
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"countIncrementalSlides": false,
+"highlightLines": true
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// add `data-at-shortcutkeys` attribute to <body> to resolve conflicts with JAWS
+// screen reader (see PR #262)
+(function(d) {
+  let res = {};
+  d.querySelectorAll('.remark-help-content table tr').forEach(tr => {
+    const t = tr.querySelector('td:nth-child(2)').innerText;
+    tr.querySelectorAll('td:first-child .key').forEach(key => {
+      const k = key.innerText;
+      if (/^[a-z]$/.test(k)) res[k] = t;  // must be a single letter (key)
+    });
+  });
+  d.body.setAttribute('data-at-shortcutkeys', JSON.stringify(res));
+})(document);
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

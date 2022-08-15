@@ -1,0 +1,733 @@
+---
+title: "Spline Based Models for Geostatistical Data"
+subtitle: "Part 1 - Introduction & Splines"
+author: "Craig Alexander & Marnie Low"
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    css: ["xaringan-themer.css", "extra.css", "tamu-fonts"]
+    nature:
+      countIncrementalSlides: false
+      highlightLines: true
+---
+
+```{r include=FALSE}
+library(knitr)
+library(tidyverse)
+library(xaringanthemer)
+library(sm)
+library(reshape2)
+library(grid)
+library(gridExtra)
+library(splines)
+library(tidyverse)
+library(kableExtra)
+
+library(mgcv)
+mono_accent(base_color = "#38a5bf", code_inline_color = "#63c8e3")
+notes_plot <- function(data, x.col, y.col, xlab, ylab, point.sz = 4, alpha=0.5){
+  ggplot(data, aes(data[,x.col], data[,y.col])) +
+         geom_point(size = point.sz, alpha=alpha) +
+         labs(x = xlab, y = ylab) +
+         theme(panel.background = element_blank(),
+               axis.line = element_line(),
+               panel.grid.major = element_line(color = "grey95"),
+               axis.title = element_text(size = 16),
+               axis.text = element_text(size = 14))
+  }
+
+set.seed(100)
+x <- seq(0,1, length=100)
+y <-3*(sin(2*pi*x^3))^3+rnorm(100,0,1)
+yact <- 3*(sin(2*pi*x^3))^3
+
+sim.dat <- data.frame(x, y, yact)
+
+boston <- read.csv("boston.csv")
+
+
+## Constructing a subset of the data
+newb <- boston[,c("crim", "rm", "lstat", "medv")]
+```
+
+
+# Overview
+
+- Introduction & Motivation
+
+<br>
+--
+
+- Nonparametric Regression
+
+<br>
+--
+
+- Regression Splines
+
+<br>
+--
+
+- Penalised Regression Splines
+
+
+<br>
+--
+
+- Choosing a Smoothing Parameter
+
+<br>
+--
+
+- Introduction to Additive Models
+
+
+---
+# Introduction & Motivation
+
+
+- Geostatistics is a branch of statistical methods used to analyse and predict values over a spatial area. It incorporates the spatial (and sometimes temporal) coordinates of data within the analyses.
+
+<br>
+--
+
+There are several modelling approaches that can be used to model geostatistical data, such as popular methods like kriging.
+
+<br>
+--
+
+- In this course, we will introduce spline-based models for geostatistical data. We will first look at these models for univariate data, before moving on to handling spatial data.
+
+<br>
+--
+
+
+- We will look at a class of flexible models that enable us to model and make inferences about relationships which take any shape.
+
+---
+# Nonparametric Regression
+
+- Smoothing techniques can be used to model the relationships between variables without specifying any particular form for the underlying regression function:
+
+$$Y_i=f(x_i)+\epsilon_i, \quad i=1, \dots,n$$
+where $Y$ denotes our response variable, $x$ a covariate and $e$ denotes an independent error term with mean 0 and variance $\sigma^2$. We call this estimate a smooth.
+
+<br>
+--
+
+Smoothers have two main uses:
+
+- *Estimation* - to aid 'visually' in the exploration of a relationship or pattern
+- *Estimation* - to estimate the dependence of the mean of $Y$ on the predictor $x$.
+
+---
+# Nonparametric Regression
+
+- The function $f(x)$ which describes the relationship between $Y$ and $x$ is unspecified and can be estimated by a smooth function $\hat{f}(x)$. This process is often called *nonparametric regression*.
+
+<br>
+--
+
+The two key questions that arise regarding defining a smoother are:
+
+1. Which smoothing method should be used?
+2. What level of smoothing is appropriate?
+
+---
+# Splines
+
+- Represent the fit of $f(x)$ is as a piecewise polynomial.
+
+<br>
+--
+
+- Spline functions consist of polynomial segments which are joined together at pre-defined subintervals.
+
+<br>
+--
+
+- The points at which these joins occur are called breakponts, or *knots* of the spline. 
+- 
+
+---
+# Knots of a spline
+```{r,eval=T,echo=F,message=F,fig.align="center",fig.retina=4}
+library(mgcv)
+set.seed(12)
+n <- 100
+x <- seq(0,1,length.out=n)
+fx <- sin(2*pi*x[1:50])
+fx <- c(fx,sin(4*pi*x[51:100]))
+y <- fx + rnorm(n,sd=0.3)
+
+mod <- gam(y~s(x,k=6))
+
+plot(x,y,type="n",main="Spline model with knots",ylim=c(-1,1.2))
+lines(x,mod$fitted.values,lwd=3)
+
+points(c(0,0.19,0.4,0.59,0.885,1),c(-0.53,1.135,0.37,0.88,-0.76,-0.44),col="red",pch=19)
+```
+
+---
+# Regression Splines
+
+- Regression splines are underpinned by a set of known functions called *basis functions*, which are a common way to build a smooth function. 
+
+<br>
+--
+
+- We can rewrite the regression equation as:
+
+$$Y_i = \beta_0b_0(x_i) + \beta_1 b_1(x_i) + \beta_2 b_2(x_i) + \ldots + \beta_p
+b_p(x_i) + \varepsilon_i ,$$
+
+where the $b_i$s correspond to the basis functions and the $\beta_{i}$s are basis coefficients. 
+
+
+--
+
+- We construct spline bases by dividing the observation interval into sub-intervals. We then join these sub-intervals together at points, which are represented by knots, which we seen previously. 
+
+
+--
+
+- Therefore, we can simplify our functions above as follows:
+
+$$f(\mathbf{x}) = \sum_{j=0}^p\beta_jb_j(x)$$
+
+---
+# Basis Functions
+
+- To fit our regression spline model, we have to choose a suitable basis.  There is a wide choice of basis we can use, and this is often dependent on our data. 
+
+<br>
+--
+
+- For a simple linear regression, 
+
+$$Y_i = \beta_0 + \beta_1 x_i+\varepsilon_i ,$$
+
+$$\mathrm{design \, \, matrix} = \mathbf{X} = \mathbf{B(x)} = \mathbf{B}=\left(
+\begin{array}{cc}
+1 & x_1 \\
+1 & x_2 \\
+. & . \\
+. & . \\
+. & . \\
+1 & x_n \\
+\end{array}
+\right)$$
+
+basis functions are $b_0(x) = 1, b_1(x) = x$
+
+---
+# Basis Functions
+
+```{r,echo=F,out.width="80%",fig.align="center",fig.retina=4}
+
+## simple linear regression
+
+set.seed(30)
+xlr <- seq(0,1,length=100)
+ylr <- seq(0,1,length=100)+rnorm(100,0,0.05)
+
+lr.dat <- data.frame(x = xlr, y=ylr)
+
+p1 <- notes_plot(lr.dat, 1, 2, xlab="x", ylab="y", alpha = 0.3) +
+       coord_fixed()+
+       geom_abline(slope = 1, intercept = 0, size=2)
+
+bs.dat <- data.frame(x= c(xlr, xlr), 
+                     y = c(rep(1,length(xlr)), xlr), 
+                     Fn = rep(c("1", "x"), each = 100))
+
+p2 <- ggplot(bs.dat, aes(x,y)) +
+  geom_line(aes(linetype = Fn), size = 1) +
+  labs(x = "x", y = "y") +
+  coord_fixed()+
+  theme(panel.background = element_blank(),
+        axis.line = element_line(),
+        panel.grid.major = element_line(color = "grey95"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 10),
+        legend.key = element_rect(fill = "white"),
+        legend.text = element_text(size = 14), 
+        legend.title = element_text(size = 14), 
+        legend.key.width = unit(1, "cm"))
+
+grid.arrange(p1, p2, ncol=2)
+```
+
+---
+# Truncated power basis
+
+- This is a simple type of polynomial spline of the following form:
+
+$$\beta_0+\beta_1x+\dots+\beta_px^p+\sum_{k=1}^K\beta_{pk}(x-\kappa_k)^p_+$$
+
+--
+
+- This basis is useful for its simplicity and ease of interpretation. The $(.)^p_{+} = \mathrm{max}\left\{(.)^p,0\right\}$  component sets any values which are negative to be 0 within the function.
+
+
+<br>
+-- 
+
+- A simple case would be for a linear spline basis with one knot at $x=0.5$ e.g.
+
+$$Y_i=\beta_0+\beta_1x_i+\beta_{11}(x_i-0.5)_++\epsilon_i, \quad i=1, \dots,n$$
+
+where $(x_i-0.5)_+$ is the positive part of the function $x-0.5$.  The $+$ sets this function to zero for those values of $x$ where $x-0.5$ is negative.
+
+---
+# Truncated power basis
+
+```{r,echo=F,fig.retina=4}
+set.seed(30)
+xlr <- seq(0,1,length=100)
+ylr <- seq(0,1,length=100)+rnorm(100,0,0.05)
+
+rhs <- function(x,c) ifelse (x>c, x-c,0)
+
+trpbs.dat <- data.frame(x= c(xlr, xlr, xlr), 
+                     y = c(rep(1,length(xlr)), xlr, rhs(xlr,0.5)), 
+                     Function = rep(c("1", "x", "(x-0.5)"), each = 100))
+knots <-c(0,0.5)
+dm <- outer(x,knots,rhs)
+
+y.trpb <- seq(0,1,length=100)
+y.trpb[50:100] <- y.trpb[50]
+set.seed(30)
+y.trpb <- y.trpb+rnorm(100,0,0.05)
+
+g <- lm(y.trpb~dm)
+fit <-predict(g)
+
+trpbs.fit <- data.frame(x=xlr, y=y.trpb, fit=fit)
+
+notes_plot(trpbs.fit, 1, 2, xlab="x", ylab="y", alpha =0.3) +
+  geom_line(data=trpbs.fit, aes(x=x, y=fit), size=1)
+```
+
+---
+# B-splines
+
+- Polynomial B-spline basis functions are among the most commonly used basis systems. They are flexible and computationally efficient for model fitting. 
+
+<br>
+--
+
+- The function $f(\mathbf{x})$ can then be written in terms of basis coefficients $\beta_j$ and basis functions $B_{j,d}(x)$ for $j$ parameters and degree $d$:
+
+$$f(\mathbf{x}) = {\sum}^{p}_{j=1} \beta_jB_{j,d}(x).$$
+<br>
+--
+
+- The `splines` package in R can be used to create basis functions. In particular, `bs()` uses a B-spline basis for a polynomial of any order (default value is cubic).
+
+---
+# B-splines
+
+```{r bsbasis, fig.cap="B-spline basis with 6 cubic b-splines",echo=F,fig.retina=4,fig.align="center"}
+B <- bs(seq(0,1,length=1000), df=6)
+B <- melt(B)
+
+
+ggplot(data = B, aes(x=Var1, y=value, group=Var2)) +
+  geom_line(aes(linetype=factor(Var2)), size = 1) + 
+  labs(x="x", y="B(x)")  +
+  guides(linetype="none", colour="none") +
+  theme(panel.background = element_blank(),
+        axis.line = element_line(),
+        panel.grid.major = element_line(color = "grey95"),
+        axis.title = element_text(size = 16),
+        axis.text = element_text(size = 14),
+        legend.key = element_rect(fill = "white"),
+        legend.text = element_text(size = 16), 
+        legend.title = element_text(size = 16), 
+        legend.key.width = unit(1, "cm"))
+
+```
+
+
+---
+# B-splines
+```{r bsfit, fig.cap="B-spline basis applied to the simulated data from above",fig.align="center",fig.retina=4,echo=F}
+sm1 <- lm(y.trpb~bs(xlr,6))
+
+bspl.fit <- data.frame(x=xlr, y=y.trpb, fit=fitted(sm1))
+
+notes_plot(bspl.fit, 1, 2, xlab="x", ylab="y", alpha =0.3) +
+  geom_line(data=bspl.fit, aes(x=x, y=fit), size=1)
+```
+
+---
+# B-splines
+
+- Have a look at the app [here](https://marnie-svst.shinyapps.io/Splines/) to try out altering the number of basis functions and see the effect of increasing and decreasing the number.
+
+<br>
+--
+
+- You can access the app link in the notes at the top of page 7.
+
+---
+# Regression Splines - Summary
+
+-   Regression splines are an attractive modelling option due to their computational advantages. 
+
+<br>
+--
+
+- Drawbacks are the difficulty in choosing the number of and position of knots. 
+
+<br>
+--
+
+- It is common for knots to be equally spaced, though in cases of imbalanced data, it may be sensible to place more knots in areas of large curvature, or less in sparse areas. 
+
+---
+# Penalised Regression Splines
+
+- An alternative to altering the basis dimension is to control the smoothness of the function by adding a penalty term. 
+
+--
+
+- A *roughness penalty* is used in order to ensure that an estimate is obtained which captures the curvature of the data without simply interpolating the observations. 
+
+--
+
+A common choice is to put a penalty on the second derivative of the fitted curve, in a similar way to smoothing splines:
+
+$$||\mathbf{y}-\mathbf{X}\boldsymbol\beta||^2+\underbrace{\lambda \int_{x_1}^{x_n}\left[f''(x)\right]^2dx}$$
+
+where the second part of this equation penalises models that are too rough or 'wiggly'.
+
+--
+
+- The trade-off between model fit and smoothness is then controlled by the smoothing parameter $\lambda$
+
+---
+# Penalised regression splines
+
+- Looking back to the app we used to visualise B-splines, return now and select the "add a roughness penalty" option to see the penalty term in action. 
+
+---
+# P-splines
+
+- P-splines use a B-spline basis, usually defined on evenly spaced knots, with a difference penalty applied directly to the parameters $\beta_j$ to control the smoothness of the function.
+
+<br>
+--
+
+- P-splines allow a great deal of flexibility in that any order of penalty can be combined with any order of B-spline basis.
+
+<br>
+--
+
+- You can read more on the construction of the differences within the course notes. 
+
+---
+# Properites, parameters and inference
+
+- For the smoothing methods discussed, we can construct the fitted values $\hat{\textbf{y}}$ as
+
+$$\hat{\textbf{y}} = \textbf{Sy}$$
+for a smoothing matrix $\textbf{S}$ whose rows consist of the weights appropriate to estimation at each evaluation point, and $\textbf{y}$ denotes the observed responses.
+
+<br>
+--
+
+- We will now consider properties associated with the smoothing matrix, 'how much' to smooth, and inference for nonparametric regression models
+
+--
+
+- More technical details and derivations of results can be found within the notes. 
+
+
+---
+# RSS & Standard Errors
+
+- The RSS is a measure of how well the model fits the data, and is defined as:
+
+$$\text{RSS} = \mathbf{y}^T(\mathbf{I}_n-\mathbf{S})^T(\mathbf{I}_n-\mathbf{S})\mathbf{y} $$
+
+
+--
+
+- Assuming constant variance, for a general point $x_i$, we have:
+
+$$\mathrm{var}(\hat{f}(x_i)) = (\mathbf{SS^T}_{ii})\sigma^2$$
+
+--
+
+- We can produce *variability bands* which express the variation in the curve estimate, by adding and subtracting two standard errors at each point on the curve:
+
+
+i.e. $$\hat{f}(x_i) \pm 2 \times \mathrm{std. dev}(\hat{f}(x_i))$$
+	
+i.e. $$\hat{f}(x_i) \pm 2 \times \sqrt{(\mathbf{SS^T}_{ii})\hat{\sigma}^2}$$
+
+---
+# Variability bands
+
+```{r seplot, fig.cap="Simulated data with fitted smooth curve (solid line) and standard errors (dashed lines)",echo=F,fig.align="center",fig.retina=4}
+sm.obj <- sm.regression(x,y,se=T)
+sm.plot.dat <- data.frame(x=sm.obj$eval.points, y.pred=sm.obj$estimate, se.low=sm.obj$estimate-2*sm.obj$se, se.high=sm.obj$estimate+2*sm.obj$se)
+notes_plot(sim.dat, 1, 2, xlab="x", ylab="y") + 
+  geom_line(sm.plot.dat, mapping = aes(x=x, y=y.pred), size=2) +
+  geom_line(sm.plot.dat, mapping = aes(x=x, y=se.low), size=1, linetype=2) +
+  geom_line(sm.plot.dat, mapping = aes(x=x, y=se.high), size=1, linetype=2) 
+```
+
+---
+# Variance estimators
+
+- After model fitting, it is necessary to provide an estimate of the error variance $\sigma^2$, assuming $\boldsymbol\epsilon \sim N(0, \sigma^2\mathbf{I})$. 
+
+--
+
+- The quantity 
+$$ \hat{\sigma}^2 = \frac{\mathrm{RSS}}{\mathrm{df_{err}}}$$
+
+is a natural estimate of $\sigma^2$.
+
+--
+
+We can use
+$$\mathrm{df}_{\mathrm{err}} = n - \mathrm{tr}(2\mathbf{S}-\mathbf{SS}^\mathrm{T}) $$
+as an estimate for the degrees of freedom. 
+
+---
+# Choice of smoothing parameter
+
+- Often the most important choice to be made is the smoothing parameter. It is important not to 'under-smooth' or 'over-smooth' the data using low or high smoothing parameters respectively. 
+
+--
+
+- Different methods are available to decide what the optimal degree of smoothing should be. These comprise of either subjective selection or automatic procedures. 
+
+--
+
+- Some automatic procedures that can be used are cross validation, generalised cross validation and AIC. 
+
+--
+
+- Graphical methods can also be used to select smoothing parameters, and it reasonable to select the smoothing parameter by the degrees of freedom. 
+
+---
+# Degrees of Freedom
+
+- One useful way to experiment with different degrees of smoothing is to specify how many *degrees of freedom* you would like to have for the model. 
+
+--
+
+- The amount of variability ('wiggliness') in the curve increases as the degrees of freedom increase. 
+
+```{r include=FALSE}
+radioc <- read.table("radioc.dat", header = TRUE)
+
+s1 <- sm.regression(radioc$cal.age, radioc$rc.age,df=3)
+s2 <- sm.regression(radioc$cal.age, radioc$rc.age,df=9)
+s3 <- sm.regression(radioc$cal.age, radioc$rc.age,df=15)
+s4 <- sm.regression(radioc$cal.age, radioc$rc.age,df=21)
+
+plot.dat <- data.frame(fit.x = rep(s1$eval.points, times=4),
+                       fit.y = c(s1$estimate, s2$estimate, s3$estimate, s4$estimate),
+                       DF = rep(c("df=3", "df=9", "df=15", "df=21"), each = 50))
+
+plot.dat$DF <-factor(plot.dat$DF, levels = unique(plot.dat$DF))
+```
+
+```{r df, fig.cap="Radiocarbon data with model with four different degrees of freedom",echo=F,fig.align="center",fig.retina=4,out.width="40%"}
+ggplot(radioc, aes(cal.age, rc.age)) +
+  geom_point(size = 4, alpha=0.3) +
+  geom_line(data=plot.dat, aes(x=fit.x, y=fit.y), size=1) +
+  labs(x = "x", y="y") +
+  facet_wrap(~DF, ncol = 2) +
+  theme(strip.text = element_text(size = 16, face = "bold"))
+```
+
+---
+# Cross Validation
+
+- Cross-validation can be applied to a wide variety of modelling settings. 
+
+--
+
+- Leave out each observation one at a time, and estimate the average smoothed value of the point which has been omitted using the remaining $n-1$ points. 
+
+--
+
+- Therefore, in this context, the idea is to choose the smoothing parameter $\lambda$ to minimise
+
+$$\frac{1}{n}\sum_{i=1}^n \{y_i - \hat{f}_{-i}(x_i)\}^2 .$$
+
+--
+
+- CV sums of squares can then be calculated for a suitable range of different smoothing parameter values. 
+
+--
+
+- CV is computationally expensive as the model needs to be fitted $n$ times for each smoothing parameter value considered. 
+
+---
+# Cross Validation
+
+```{r cvfit, fig.cap="Simulated data with a penalised regression spline fit optimised using CV (solid line) and true curve (dotted line).",echo=F,fig.align="center",fig.retina=4}
+modfin <- gam(y~s(x, sp=0.04), data=sim.dat)
+fit.dat<- data.frame(x = sim.dat$x, y=modfin$fitted.values)
+
+notes_plot(sim.dat, 1, 2, xlab="x", ylab="y", alpha =0.3) +
+  geom_line(data=fit.dat, aes(x=x, y=y, linetype = "dashed"), size=1.5) +
+  geom_line(data=sim.dat, aes(x=x, y=yact, linetype = "solid"), size=1.5) +
+  scale_linetype_manual(name = "Line", 
+                        values = c(1, 2), 
+                        labels = c("PRS fit", "True"))  +
+  ggtitle("Lambda = 0.040, df = 11.4") +
+  theme(legend.key = element_rect(fill = "white"),
+        legend.text = element_text(size = 12), 
+        legend.title = element_text(size = 12), 
+        legend.key.width = unit(1, "cm"),
+        title = element_text(size = 14)) 
+  
+```
+
+---
+# Generalised Cross Validation (GCV)
+
+- GCV overcomes the problem of having to fit the model $n$ times, for each $\lambda$.
+
+--
+
+- For GCV the model only needs to be fitted once with the full data for each value of the smoothing parameter. 
+
+--
+
+- The GCV value can be defined as:
+
+
+$$\mathrm{GCV} = \frac{n\mathrm{RSS}}{(n-\mathrm{tr}(\mathbf{S}))^2}.$$
+where $\mathrm{tr}$ is the trace. 
+
+---
+# GCV
+
+```{r gcvfit, fig.cap="Simulated data with penalised regression spline fit optimised using GCV (solid line) and true curve (dotted line)",fig.align="center",fig.retina=4,echo=F}
+modfin <- gam(y~s(x, sp=0.038), data=sim.dat)
+fit.dat<- data.frame(x = sim.dat$x, y=modfin$fitted.values)
+notes_plot(sim.dat, 1, 2, xlab="x", ylab="y", alpha =0.3) +
+  geom_line(data=fit.dat, aes(x=x, y=y, linetype = "dashed"), size=1) +
+  geom_line(data=sim.dat, aes(x=x, y=yact, linetype = "solid"), size=1) +
+  scale_linetype_manual(name = "Line", 
+                        values = c(1, 2), 
+                        labels = c("PRS fit", "True"))  +
+  ggtitle("Lambda = 0.038") +
+  theme(panel.background = element_blank(),
+        axis.line = element_line(),
+        panel.grid.major = element_line(color = "grey95"),
+        axis.title = element_text(size = 16),
+        axis.text = element_text(size = 10),
+        legend.key = element_rect(fill = "white"),
+        legend.text = element_text(size = 12), 
+        legend.title = element_text(size = 12), 
+        legend.key.width = unit(1, "cm"),
+        title = element_text(size = 14)) 
+```
+
+---
+# AIC & AICc
+
+- Two commonly used model selection criteria are Akaike's Information Criterion (AIC) and a corrected version of the statistic, called AICc. 
+
+--
+
+-  The AIC can be defined as
+
+ $$\mathrm{AIC} = - 2\log(L)+2\mathrm{df_{mod}}$$
+
+--
+
+- AICc can be defined as,
+
+$$ \mathrm{AICc} = \mathrm{AIC} + \frac{2\mathrm{df_{mod}} (\mathrm{df_{mod}} + 1)}{n - \mathrm{df_{mod}} - 1}$$
+
+
+where $n$= sample size, $\mathrm{df_{mod}}$ = degrees of freedom for the fitted model, and $L$= the maximised value of the likelihood function for the estimated model. 
+
+--
+
+- For both criteria, the minimum value indicates the best model, which would indicate the smoothing parameter which should be used. 
+
+---
+# Summary of choosing smoothing parameter
+
+- Automatic procedures for the selection of smoothing parameters assume the data, and hence any errors from fitted models, are *independent*.
+
+--
+
+- The presence of *correlation* between the errors can cause automatic smoothing selection methods like GCV to break down. 
+
+--
+
+- Taking a subjective approach and using judgement as to what values of the smoothing parameter provide a smooth function is a reasonable alternative (e.g. explore graphical representations for different smoothing parameter values).
+
+--
+
+- An approximate number of degrees of freedom can be chosen to define how complex the model is, and the smoothing parameters are then set in order to obtain this pre-specified number.
+
+---
+# Choosing the number of knots
+
+- If there are too few knots then a good fit will not be achievable.
+
+--
+
+- A reasonable default is to choose the number of knots to ensure there is a *fixed number of 'unique' observations* (say 4-5) between each knot. 
+
+--
+- This can lead to an excessive number of knots for large datasets so a maximum bound can be put on the number of knots used in total. 
+
+--
+
+- Automatic methods like GCV can be used to select the number of knots.
+
+---
+# Model fitting in R
+
+- Nonparametric models using a penalised regression spline can be fitted in R using the `gam` function in the `mgcv` package.
+
+--
+
+- This function uses GCV as the method for selecting the smoothing parameter, though other methods can be implemented using the `method=` option within `gam`.
+
+--
+
+- You can find a table of available spline functions within the notes. 
+
+---
+# R Commands
+
+- **Penalised Regression Splines in R** 
+
+`library(mgcv)`
+
+`gam(y~s(x, bs="cr"), method="GCV.Cp")`
+
+--
+
+- **P-splines in R** 
+
+`library(mgcv)`
+
+`gam(y~s(x, bs="ps"), method="GCV.Cp")`
+
+--
+
+- **Regression Splines in R (i.e. a penalised regression spline with the smoothing parameter (sp) set to 0** 
+
+`library(mgcv)`
+
+`gam(y~s(x, bs="cr", sp=0))`
+
+Within `s()` we can specify the type of basis we want to use with `bs=` and the number of basis functions we want to use with `k=`, here the default value is 10.
